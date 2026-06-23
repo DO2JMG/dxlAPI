@@ -56,8 +56,6 @@ int main(int argc, char **argv) {
     }
 
     log_msg("INFO", "Listening on udp://%s:%d as %s", cfg.bind_addr, cfg.port, cfg.callsign);
-    log_msg("INFO", "Altitude-dependent telemetry rate limit: <2000m=%ds, 2000-5000m=%ds, >5000m=%ds per sonde",
-            UPLOAD_INTERVAL_LOW_ALT_SEC, UPLOAD_INTERVAL_MID_ALT_SEC, UPLOAD_INTERVAL_HIGH_ALT_SEC);
     log_msg("INFO", "Receiver position upload interval: every %d seconds", POSITION_UPLOAD_INTERVAL_SEC);
 
     while (g_running) {
