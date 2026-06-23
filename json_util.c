@@ -168,5 +168,4 @@ void log_packet_preview(const char *packet) {
     }
 
     log_msg("DEBUG", "Packet preview ASCII: %s%s", ascii, len > n_ascii ? "..." : "");
-    log_msg("DEBUG", "Packet preview HEX: %s%s", hex, len > n_hex ? "..." : "");
 }
