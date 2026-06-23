@@ -42,5 +42,5 @@ Options use a single `-` prefix:
 `sondemod` should enable the JSON UDP output, for example:
 
 ```
- sondemod ...  -M <ip>:<port>
+ sondemod ...  -J <ip>:<port>
 ```
