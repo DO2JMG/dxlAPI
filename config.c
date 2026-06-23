@@ -26,15 +26,6 @@ void usage(FILE *out) {
         "  -v                       Print received JSON and more diagnostics\n"
         "  -h                       Show this help\n"
         "\n"
-        "Compatibility:\n"
-        "  The older --callsign, --station-lat, --station-lon, --bind, --port,\n"
-        "  --dry-run and --verbose forms are still accepted, but no longer documented\n"
-        "  as the preferred syntax.\n"
-        "\n"
-        "Important:\n"
-        "  Telemetry uploads use a fixed altitude-dependent rate limit per sonde.\n"
-        "  Plausibility checks drop defective frames before upload.\n"
-        "  These safety limits are intentionally not configurable by the user.\n"
     );
 }
 
