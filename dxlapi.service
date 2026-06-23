@@ -1,0 +1,19 @@
+[Unit]
+Description=dxlAPRS to wettersonde.net uploader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/dxlapi -callsign DL1XYZ-11 -lat 52.5200 -lon 13.4050 -bind 127.0.0.1 -port 18001
+Restart=always
+RestartSec=5
+User=dxlws
+Group=dxlws
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
