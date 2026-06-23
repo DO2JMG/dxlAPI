@@ -42,5 +42,5 @@ Options use a single `-` prefix:
 `sondemod` should enable the JSON UDP output, for example:
 
 ```bash
-sondemod ... -J 127.0.0.1:4099
+sondemod ... -J <IP>:<PORT>
 ```
