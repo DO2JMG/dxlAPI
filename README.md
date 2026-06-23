@@ -27,7 +27,7 @@ make
 
 ## Command-line options
 
-Since version 0.9.2, options use a single `-` prefix:
+Options use a single `-` prefix:
 
 ```text
 -callsign CALLSIGN
@@ -35,7 +35,12 @@ Since version 0.9.2, options use a single `-` prefix:
 -lon LON
 -bind ADDR
 -port PORT
--dry
--v
--h
+```
+
+## sondemod
+
+`sondemod` should enable the JSON UDP output, for example:
+
+```bash
+sondemod ... -J 127.0.0.1:4099
 ```
