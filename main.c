@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "app.h"
+#include "batch.h"
 #include "config.h"
 #include "log.h"
 #include "position.h"
@@ -25,6 +26,7 @@ static void on_signal(int signo) {
 
 int main(int argc, char **argv) {
     config_t cfg;
+    batch_t telemetry_batch;
 
     if (!parse_args(argc, argv, &cfg)) {
         usage(stderr);
@@ -33,6 +35,8 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, on_signal);
     signal(SIGTERM, on_signal);
+
+    batch_init(&telemetry_batch);
 
     if (curl_global_init(CURL_GLOBAL_DEFAULT) != 0) {
         log_msg("ERROR", "curl_global_init failed");
@@ -56,10 +60,16 @@ int main(int argc, char **argv) {
     }
 
     log_msg("INFO", "Listening on udp://%s:%d as %s", cfg.bind_addr, cfg.port, cfg.callsign);
+    log_msg("INFO", "Altitude-dependent telemetry rate limit: <2000m=%ds, 2000-5000m=%ds, >5000m=%ds per sonde",
+            UPLOAD_INTERVAL_LOW_ALT_SEC, UPLOAD_INTERVAL_MID_ALT_SEC, UPLOAD_INTERVAL_HIGH_ALT_SEC);
     log_msg("INFO", "Receiver position upload interval: every %d seconds", POSITION_UPLOAD_INTERVAL_SEC);
 
     while (g_running) {
         time_t now = time(NULL);
+
+        if (batch_should_flush(&telemetry_batch, now)) {
+            batch_flush(&telemetry_batch, &cfg);
+        }
 
         if (now >= next_position_upload) {
             if (upload_receiver_position(&cfg) == 0) {
@@ -73,6 +83,10 @@ int main(int argc, char **argv) {
 
         now = time(NULL);
         long wait_sec = (long)difftime(next_position_upload, now);
+        if (batch_count(&telemetry_batch) > 0) {
+            long batch_wait = BATCH_FLUSH_INTERVAL_SEC - (long)difftime(now, telemetry_batch.first_queued);
+            if (batch_wait < wait_sec) wait_sec = batch_wait;
+        }
         if (wait_sec < 1) wait_sec = 1;
         if (wait_sec > 5) wait_sec = 5;
 
@@ -102,8 +116,16 @@ int main(int argc, char **argv) {
             }
             buf[n] = '\0';
             if (cfg.verbose) log_msg("DEBUG", "Received: %s", buf);
-            convert_and_upload_telemetry(buf, &cfg);
+            int queued = convert_and_queue_telemetry(buf, &cfg, &telemetry_batch);
+            if (queued > 0 && batch_count(&telemetry_batch) >= BATCH_MAX_FRAMES) {
+                batch_flush(&telemetry_batch, &cfg);
+            }
         }
+    }
+
+    if (batch_count(&telemetry_batch) > 0) {
+        log_msg("INFO", "Flushing remaining telemetry batch before stopping");
+        batch_flush(&telemetry_batch, &cfg);
     }
 
     log_msg("INFO", "Stopping");

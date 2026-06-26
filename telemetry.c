@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "telemetry.h"
-#include "http_client.h"
+#include "batch.h"
 #include "json_util.h"
 #include "log.h"
 #include "rate_limit.h"
@@ -157,6 +157,11 @@ int parse_telemetry(const char *packet, telemetry_t *t) {
     if (t->has_sat && t->sat <= 0) t->has_sat = 0;
     t->has_burstkilltimer = get_int_any(packet, bursttx_names, &t->burstkilltimer);
     t->has_killtimer = get_int_any(packet, txoff_names, &t->killtimer);
+
+    t->has_xdata = json_get_raw_array(packet, "xdata", t->xdata, sizeof(t->xdata));
+    t->has_xdata1 = json_get_raw_array(packet, "xdata1", t->xdata1, sizeof(t->xdata1));
+    t->has_xdata2 = json_get_raw_array(packet, "xdata2", t->xdata2, sizeof(t->xdata2));
+    t->has_xdata3 = json_get_raw_array(packet, "xdata3", t->xdata3, sizeof(t->xdata3));
     return 1;
 }
 
@@ -243,6 +248,21 @@ int build_telemetry_json(const telemetry_t *t, const config_t *cfg, char *out, u
     APPEND_OPTIONAL_INT(t->has_burstkilltimer, "burstkilltimer", t->burstkilltimer);
     APPEND_OPTIONAL_INT(t->has_killtimer, "killtimer", t->killtimer);
 
+#define APPEND_OPTIONAL_ARRAY(flag, name, value) \
+    do { \
+        if (flag) { \
+            int m = snprintf(out + n, out_size - (unsigned long)n, ",\"%s\":%s", name, value); \
+            if (m < 0 || (unsigned long)m >= out_size - (unsigned long)n) return 0; \
+            n += m; \
+        } \
+    } while (0)
+
+    APPEND_OPTIONAL_ARRAY(t->has_xdata, "xdata", t->xdata);
+    APPEND_OPTIONAL_ARRAY(t->has_xdata1, "xdata1", t->xdata1);
+    APPEND_OPTIONAL_ARRAY(t->has_xdata2, "xdata2", t->xdata2);
+    APPEND_OPTIONAL_ARRAY(t->has_xdata3, "xdata3", t->xdata3);
+
+#undef APPEND_OPTIONAL_ARRAY
 #undef APPEND_OPTIONAL_INT
 #undef APPEND_OPTIONAL
 
@@ -252,7 +272,7 @@ int build_telemetry_json(const telemetry_t *t, const config_t *cfg, char *out, u
     return 1;
 }
 
-int convert_and_upload_telemetry(const char *packet, const config_t *cfg) {
+int convert_and_queue_telemetry(const char *packet, const config_t *cfg, batch_t *batch) {
     telemetry_t t;
     char json[MAX_JSON_OUT];
 
@@ -307,7 +327,15 @@ int convert_and_upload_telemetry(const char *packet, const config_t *cfg) {
     }
 
     if (cfg->verbose) {
-        log_msg("INFO", "Uploading serial=%s frame=%d altitude=%.1fm interval=%ds", t.serial, t.frame, t.altitude, upload_interval);
+        log_msg("INFO", "Queueing serial=%s frame=%d altitude=%.1fm interval=%ds", t.serial, t.frame, t.altitude, upload_interval);
     }
-    return http_post_json(TELEMETRY_URL, json, cfg->dry_run);
+    if (!batch_add_frame(batch, json)) {
+        log_msg("ERROR", "Telemetry batch is full; could not queue serial=%s", t.serial);
+        return -1;
+    }
+
+    if (cfg->verbose) {
+        log_msg("INFO", "Queued serial=%s frame=%d for batch upload", t.serial, t.frame);
+    }
+    return 1;
 }

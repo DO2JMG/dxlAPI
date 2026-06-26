@@ -6,7 +6,7 @@ PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 
 TARGET = dxlapi
-SRC = main.c config.c http_client.c json_util.c log.c position.c rate_limit.c telemetry.c udp.c
+SRC = main.c batch.c config.c http_client.c json_util.c log.c position.c rate_limit.c telemetry.c udp.c
 OBJ = $(SRC:.c=.o)
 DEP = $(SRC:.c=.d)
 

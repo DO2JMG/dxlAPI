@@ -104,6 +104,46 @@ int json_get_string(const char *json, const char *key, char *out, size_t out_siz
     return i > 0;
 }
 
+
+int json_get_raw_array(const char *json, const char *key, char *out, size_t out_size) {
+    const char *p = json_find_value(json, key);
+    const char *start;
+    int depth = 0;
+    int in_string = 0;
+    int escaped = 0;
+    size_t len;
+
+    if (!p || out_size == 0) return 0;
+    p = skip_ws(p);
+    if (*p != '[') return 0;
+
+    start = p;
+    while (*p) {
+        char c = *p;
+        if (in_string) {
+            if (escaped) escaped = 0;
+            else if (c == '\\') escaped = 1;
+            else if (c == '"') in_string = 0;
+        } else {
+            if (c == '"') in_string = 1;
+            else if (c == '[') depth++;
+            else if (c == ']') {
+                depth--;
+                if (depth == 0) {
+                    p++;
+                    len = (size_t)(p - start);
+                    if (len >= out_size) return 0;
+                    memcpy(out, start, len);
+                    out[len] = '\0';
+                    return 1;
+                }
+            }
+        }
+        p++;
+    }
+    return 0;
+}
+
 int get_number_any(const char *json, const char **names, double *out) {
     for (int i = 0; names[i]; i++) if (json_get_number(json, names[i], out)) return 1;
     return 0;
@@ -168,4 +208,5 @@ void log_packet_preview(const char *packet) {
     }
 
     log_msg("DEBUG", "Packet preview ASCII: %s%s", ascii, len > n_ascii ? "..." : "");
+    log_msg("DEBUG", "Packet preview HEX: %s%s", hex, len > n_hex ? "..." : "");
 }

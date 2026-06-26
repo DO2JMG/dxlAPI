@@ -6,17 +6,21 @@
 
 #define PROGRAM_NAME "dxlapi"
 #define HTTP_SOFTWARE_NAME "dxlAPI"
-#define PROGRAM_VERSION "0.9.2"
+#define PROGRAM_VERSION "0.10.1"
 
 #define DEFAULT_BIND_ADDR "127.0.0.1"
 #define DEFAULT_PORT 18001
 #define MAX_PACKET 16384
-#define MAX_JSON_OUT 4096
+#define MAX_JSON_OUT 8192
+#define BATCH_MAX_FRAMES 20
+#define BATCH_FLUSH_INTERVAL_SEC 5
+#define MAX_BATCH_JSON_OUT 131072
 #define MAX_SONDES 256
 #define MAX_SERIAL_LEN 96
 #define MAX_CALLSIGN_CHARS 10
 #define MAX_CALLSIGN_LEN (MAX_CALLSIGN_CHARS + 1)
 #define MAX_FIELD_LEN 160
+#define MAX_XDATA_JSON_LEN 2048
 
 #define TELEMETRY_URL "http://api.wettersonde.net/telemetrie.php"
 #define POSITION_URL  "http://api.wettersonde.net/position.php"
@@ -61,6 +65,14 @@ typedef struct {
     int has_sat;
     int has_burstkilltimer;
     int has_killtimer;
+    int has_xdata;
+    int has_xdata1;
+    int has_xdata2;
+    int has_xdata3;
+    char xdata[MAX_XDATA_JSON_LEN];
+    char xdata1[MAX_XDATA_JSON_LEN];
+    char xdata2[MAX_XDATA_JSON_LEN];
+    char xdata3[MAX_XDATA_JSON_LEN];
     double temperature;
     double humidity;
     double pressure;
