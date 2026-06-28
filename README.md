@@ -37,10 +37,18 @@ Options use a single `-` prefix:
 -port PORT
 ```
 
+```text
+Example dxlapi -callsign DO1XYZ -lat 52.12345 -lon 8.12345 -bind 127.0.0.1 -port 18005
+```
+
 ## sondemod
 
 `sondemod` should enable the JSON UDP output, for example:
 
 ```
  sondemod ...  -J <ip>:<port>
+```
+
+```text
+Example -J 127.0.0.1:18005
 ```
