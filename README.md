@@ -29,6 +29,8 @@ make
 
 Options use a single `-` prefix:
 
+The call sign does not have to be an amateur radio call sign. However, it must not be longer than 10 characters and must not contain any special characters.
+
 ```text
 -callsign CALLSIGN
 -lat LAT
