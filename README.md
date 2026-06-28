@@ -40,7 +40,7 @@ The call sign does not have to be an amateur radio call sign. However, it must n
 ```
 
 ```text
-Example dxlapi -callsign DO1XYZ -lat 52.12345 -lon 8.12345 -bind 127.0.0.1 -port 18005
+Example: dxlapi -callsign DO1XYZ -lat 52.12345 -lon 8.12345 -bind 127.0.0.1 -port 18005
 ```
 
 ## sondemod
@@ -48,7 +48,7 @@ Example dxlapi -callsign DO1XYZ -lat 52.12345 -lon 8.12345 -bind 127.0.0.1 -port
 `sondemod` should enable the JSON UDP output, for example:
 
 ```
- sondemod ...  -J <ip>:<port>
+ sondemod: ...  -J <ip>:<port>
 ```
 
 ```text
