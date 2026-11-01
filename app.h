@@ -82,6 +82,12 @@ typedef struct {
     int sat;
     int burstkilltimer;
     int killtimer;
+ 
+    int has_sonde_time;
+    int sonde_time_invalid;
+    char sonde_time[7];        /* HHMMSS */
+    int has_sonde_datetime;
+    char sonde_datetime[24];   /* YYYY-MM-DDTHH:MM:SSZ */
 } telemetry_t;
 
 #endif
