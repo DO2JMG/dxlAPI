@@ -92,6 +92,57 @@ static void log_missing_fields(const char *packet,
     if (missing[0]) log_msg("DEBUG", "Missing mapped fields: %s", missing);
 }
 
+/* "07:19:42" -> "071942". Liefert 0 bei ungueltigem Format oder Wertebereich. */
+static int parse_sonde_time(const char *in, char out[7]) {
+    int hh, mm, ss;
+    char extra;
+    if (sscanf(in, "%2d:%2d:%2d%c", &hh, &mm, &ss, &extra) != 3) return 0;
+    if (hh < 0 || hh > 23 || mm < 0 || mm > 59 || ss < 0 || ss > 59) return 0;
+    snprintf(out, 7, "%02d%02d%02d", hh, mm, ss);
+    return 1;
+}
+
+/* "2026.11.01" (sondemod) oder "2026-11-01". Jahre vor 2020 = kein GPS-Fix. */
+static int parse_sonde_date(const char *in, int *year, int *month, int *day) {
+    char sep1, sep2, extra;
+    if (sscanf(in, "%4d%c%2d%c%2d%c", year, &sep1, month, &sep2, day, &extra) != 5) return 0;
+    if ((sep1 != '.' && sep1 != '-') || sep2 != sep1) return 0;
+    if (*year < 2020 || *year > 2099 || *month < 1 || *month > 12 || *day < 1 || *day > 31) return 0;
+    return 1;
+}
+
+/*
+ * Zeit der Sonde aus dem sondemod-JSON. sondemod sendet sie als UTC, also
+ * in derselben Zeitbasis wie seine APRS-Objekte und wie rdzTTGOsonde.
+ * Ohne "time" bleibt es bei der PC-Uhr (has_sonde_time = 0).
+ * Ein vorhandenes, aber unbrauchbares "time"/"date" macht den Frame ungueltig.
+ */
+static void parse_sonde_datetime(const char *packet, telemetry_t *t) {
+    char time_str[32];
+    char date_str[32];
+    int year, month, day;
+
+    if (!json_get_string(packet, "time", time_str, sizeof(time_str))) return;
+
+    if (!parse_sonde_time(time_str, t->sonde_time)) {
+        t->sonde_time_invalid = 1;
+        return;
+    }
+    t->has_sonde_time = 1;
+
+    if (json_get_string(packet, "date", date_str, sizeof(date_str))) {
+        if (!parse_sonde_date(date_str, &year, &month, &day)) {
+            t->sonde_time_invalid = 1;
+            return;
+        }
+        snprintf(t->sonde_datetime, sizeof(t->sonde_datetime), "%04d-%02d-%02dT%c%c:%c%c:%c%cZ",
+                 year, month, day,
+                 t->sonde_time[0], t->sonde_time[1], t->sonde_time[2],
+                 t->sonde_time[3], t->sonde_time[4], t->sonde_time[5]);
+        t->has_sonde_datetime = 1;
+    }
+}
+
 int parse_telemetry(const char *packet, telemetry_t *t) {
     static const char *lat_names[]    = {"latitude", "lat", "latit", "la", "y", NULL};
     static const char *lon_names[]    = {"longitude", "long", "lon", "lng", "longit", "lo", "x", NULL};
@@ -162,6 +213,8 @@ int parse_telemetry(const char *packet, telemetry_t *t) {
     t->has_xdata1 = json_get_raw_array(packet, "xdata1", t->xdata1, sizeof(t->xdata1));
     t->has_xdata2 = json_get_raw_array(packet, "xdata2", t->xdata2, sizeof(t->xdata2));
     t->has_xdata3 = json_get_raw_array(packet, "xdata3", t->xdata3, sizeof(t->xdata3));
+
+    parse_sonde_datetime(packet, t);
     return 1;
 }
 
@@ -196,6 +249,10 @@ int validate_telemetry(const telemetry_t *t) {
         log_msg("WARN", "Frame rejected: serial must start with a letter, got serial=%s frame=%d", t->serial[0] ? t->serial : "<missing>", t->frame);
         return 0;
     }
+    if (t->sonde_time_invalid) {
+        log_msg("WARN", "Frame rejected: invalid sonde time/date (no GPS fix?) for serial=%s frame=%d", t->serial, t->frame);
+        return 0;
+    }
     return 1;
 }
 
@@ -206,7 +263,12 @@ int build_telemetry_json(const telemetry_t *t, const config_t *cfg, char *out, u
     char esc_call[MAX_CALLSIGN_LEN * 2];
     int n;
 
-    utc_hhmmss(timestamp);
+    /* Zeit der Sonde, wenn sondemod sie liefert; sonst PC-Uhr beim Empfang */
+    if (t->has_sonde_time) {
+        snprintf(timestamp, sizeof(timestamp), "%s", t->sonde_time);
+    } else {
+        utc_hhmmss(timestamp);
+    }
     json_escape(t->type, esc_type, sizeof(esc_type));
     json_escape(t->serial, esc_serial, sizeof(esc_serial));
     json_escape(cfg->callsign, esc_call, sizeof(esc_call));
@@ -243,6 +305,13 @@ int build_telemetry_json(const telemetry_t *t, const config_t *cfg, char *out, u
             n += m; \
         } \
     } while (0)
+
+    /* Datum + Zeit der Sonde: der Server prueft damit, dass der Frame von heute ist */
+    if (t->has_sonde_datetime) {
+        int m = snprintf(out + n, out_size - (unsigned long)n, ",\"datetime\":\"%s\"", t->sonde_datetime);
+        if (m < 0 || (unsigned long)m >= out_size - (unsigned long)n) return 0;
+        n += m;
+    }
 
     APPEND_OPTIONAL_INT(t->has_sat, "sat", t->sat);
     APPEND_OPTIONAL_INT(t->has_burstkilltimer, "burstkilltimer", t->burstkilltimer);
