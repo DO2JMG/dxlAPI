@@ -92,7 +92,6 @@ static void log_missing_fields(const char *packet,
     if (missing[0]) log_msg("DEBUG", "Missing mapped fields: %s", missing);
 }
 
-/* "07:19:42" -> "071942". Liefert 0 bei ungueltigem Format oder Wertebereich. */
 static int parse_sonde_time(const char *in, char out[7]) {
     int hh, mm, ss;
     char extra;
@@ -111,12 +110,6 @@ static int parse_sonde_date(const char *in, int *year, int *month, int *day) {
     return 1;
 }
 
-/*
- * Zeit der Sonde aus dem sondemod-JSON. sondemod sendet sie als UTC, also
- * in derselben Zeitbasis wie seine APRS-Objekte und wie rdzTTGOsonde.
- * Ohne "time" bleibt es bei der PC-Uhr (has_sonde_time = 0).
- * Ein vorhandenes, aber unbrauchbares "time"/"date" macht den Frame ungueltig.
- */
 static void parse_sonde_datetime(const char *packet, telemetry_t *t) {
     char time_str[32];
     char date_str[32];
@@ -306,7 +299,6 @@ int build_telemetry_json(const telemetry_t *t, const config_t *cfg, char *out, u
         } \
     } while (0)
 
-    /* Datum + Zeit der Sonde: der Server prueft damit, dass der Frame von heute ist */
     if (t->has_sonde_datetime) {
         int m = snprintf(out + n, out_size - (unsigned long)n, ",\"datetime\":\"%s\"", t->sonde_datetime);
         if (m < 0 || (unsigned long)m >= out_size - (unsigned long)n) return 0;
